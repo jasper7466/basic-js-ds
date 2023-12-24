@@ -9,8 +9,6 @@ const { Node } = require('../extensions/list-tree.js');
 class BinarySearchTree {
   constructor() {
     this._root = null;
-    this._min = null;
-    this._max = null;
   }
 
   root() {
@@ -20,8 +18,6 @@ class BinarySearchTree {
   add(data) {
     if (!this._root) {
       this._root = new Node(data);
-      this._min = data;
-      this._max = data;
       return;
     }
 
@@ -39,8 +35,6 @@ class BinarySearchTree {
 
       if (currentNode[direction] === null) {
         currentNode[direction] = new Node(data);
-        this._min = Math.min(this._min, data);
-        this._max = Math.max(this._max, data);
         return;
       }
 
@@ -60,47 +54,116 @@ class BinarySearchTree {
     return this._find(data).node;
   }
 
-  _find(data) {
+  _find(data, startFrom = this._root) {
     let parent = null;
-    let currentNode = this._root;
+    let side = null;
+    let currentNode = startFrom;
 
     while (currentNode) {
-      parent = currentNode;
+      const prevNode = currentNode;
 
       if (data < currentNode.data) {
         currentNode = currentNode.left;
+        side = 'left';
       } else if (data > currentNode.data) {
         currentNode = currentNode.right;
+        side = 'right';
       } else if (data === currentNode.data) {
-        return { parent, node: currentNode };
+        return { parent, node: currentNode, side };
       }
+
+      parent = prevNode;
     }
 
-    return { parent: null, node: null };
+    return { parent: null, node: null, isLeft: null };
   }
 
   remove(data) {
-    if (!this._root) {
-      return;
-    }
-    const { parent, node: nodeToRemove } = this._find(data);
+    this._remove(data);
+  }
 
-    // Case 1: No descendants (leaf)
-    if (nodeToRemove.left === null && nodeToRemove.right === null) {
-      if (parent && parent.left === nodeToRemove) {
-        parent.left = null;
-      } else {
-        parent.right = null;
-      }
+  _remove(data, nodeMetaData = null) {
+    if (!this._root) {
+      return null;
     }
+
+    const {
+      parent,
+      node: nodeToRemove,
+      side,
+    } = nodeMetaData ? nodeMetaData : this._find(data);
+
+    if (!nodeToRemove) {
+      return null;
+    }
+
+    // Case 1: No descendants (leaf-node)
+    if (!nodeToRemove.left && !nodeToRemove.right) {
+      if (nodeToRemove === this._root) {
+        this._root = null;
+      } else {
+        parent[side] = null;
+      }
+
+      return nodeToRemove;
+    }
+
+    // Case 2: Only one descendant (any - left or right)
+    if (!nodeToRemove.left || !nodeToRemove.right) {
+      const descendant = nodeToRemove.left || nodeToRemove.right;
+
+      if (nodeToRemove === this._root) {
+        this._root = descendant;
+      } else {
+        parent[side] = descendant;
+      }
+
+      return nodeToRemove;
+    }
+
+    // Case 3: Both descendants are present
+    if (nodeToRemove.left && nodeToRemove.right) {
+      //
+      // A little bit more optimal way (maybe), but something goes wrong...
+      // Debug required
+      //
+      // const nodeToReplaceMetaData = {
+      //   ...this._getEdge('left', nodeToRemove.right),
+      //   parent: nodeToRemove,
+      // };
+
+      // this._remove(null, nodeToReplaceMetaData);
+      // nodeToRemove.data = nodeToReplaceMetaData.node.data;
+
+      const nodeToReplace = this._getEdge('left', nodeToRemove.right).node;
+
+      this._remove(nodeToReplace.data);
+      nodeToRemove.data = nodeToReplace.data;
+
+      return nodeToRemove;
+    }
+
+    throw new Error('Removing node unexpected error');
+  }
+
+  _getEdge(side = 'left', startFromNode = this._root) {
+    let node = startFromNode;
+    let parent = null;
+
+    while (node[side]) {
+      parent = node;
+      node = node[side];
+    }
+
+    return { parent, node, side };
   }
 
   min() {
-    return this._min;
+    return this._getEdge('left').node.data;
   }
 
   max() {
-    return this._max;
+    return this._getEdge('right').node.data;
   }
 }
 
